@@ -3,7 +3,7 @@ set -e
 
 echo "==> Building..."
 rm -rf build
-meson setup build
+meson setup build --prefix "$(realpath .)" --libdir build
 meson compile -C build
 
 echo "==> Running GJS test (application should boot any minute from now)..."

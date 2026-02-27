@@ -55,7 +55,7 @@ typelib = custom_target('typelib',
   output: 'GtkGlShaders-0.1.typelib',
   command: [
     'g-ir-compiler',
-    '--shared-library=libgtkglshaders.so',
+    '--shared-library', get_option('prefix') / get_option('libdir') / 'libgtkglshaders.so',
     '@INPUT@', '-o', '@OUTPUT@',
   ],
   install: true,
