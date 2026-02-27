@@ -4,7 +4,11 @@
 
 /**
  * gtk_gl_shaders_new_area_for_shader:
- * @shader: GLSL fragment shader source
- * Returns: (transfer full): a new GLArea with the shader applied
+ * @shader: (not nullable): GLSL fragment shader source
+ * @texture_paths: (array length=texture_count) (nullable): paths to image files
+ * @texture_count: number of textures
+ * Returns: (transfer full): a new GLArea
  */
-GtkWidget *gtk_gl_shaders_new_area_for_shader(const char *shader);
+GtkWidget *gtk_gl_shaders_new_area_for_shader(const char *shader,
+                                              const char **texture_paths,
+                                              int texture_count);

@@ -10,13 +10,17 @@ Gtk.init();
 const win = new Gtk.Window({ title: "Test GLArea" });
 win.set_default_size(400, 400);
 
-const area = GtkGlShaders.new_area_for_shader(`
-    in vec2 uv;
+const area = GtkGlShaders.new_area_for_shader(
+  `
+in vec2 uv;
+    uniform sampler2D tex0;
     out vec4 out_color;
     void main() {
-        out_color = vec4(uv, 0.5, 1.0);
+        out_color = texture(tex0, uv);
     }
-`);
+`,
+  ["./img.jpg"],
+);
 
 win.set_child(area);
 win.connect("destroy", () => loop.quit());
