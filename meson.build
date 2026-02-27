@@ -1,5 +1,41 @@
-project('gtk-gl-shaders', 'rust')
+project('gtk-gl-shaders', version: '0.1.0')
 
-cargo_bin = find_program('cargo')
-gir_scanner = find_program('g-ir-scanner')
-gir_compiler = find_program('g-ir-compiler')
+gnome = import('gnome')
+
+cargo_build = custom_target('cargo-build',
+  output: 'libgtkglshaders.so',
+  command: [
+    'cargo', 'build', '--release',
+    '--manifest-path', meson.project_source_root() / 'Cargo.toml',
+  ],
+  build_by_default: true,
+  console: true,
+)
+
+gir = custom_target('gir',
+  input: cargo_build,
+  output: 'GtkGlShaders-0.1.gir',
+  command: [
+    'g-ir-scanner', '-v', '--warn-all',
+    '--namespace', 'GtkGlShaders',
+    '--nsversion', '0.1',
+    '--library=gtkglshaders',
+    '--library-path', meson.project_source_root() / 'target/release',
+    '--include', 'GLib-2.0',   '--pkg', 'glib-2.0',
+    '--include', 'GObject-2.0','--pkg', 'gobject-2.0',
+    '--include', 'Gtk-4.0',    '--pkg', 'gtk4',
+    '--pkg-export', 'GtkGlShaders-0.1',
+    '--output', '@OUTPUT@',
+  ],
+)
+
+typelib = custom_target('typelib',
+  input: gir,
+  output: 'GtkGlShaders-0.1.typelib',
+  command: [
+    'g-ir-compiler',
+    '@INPUT@', '-o', '@OUTPUT@',
+  ],
+  install: true,
+  install_dir: get_option('libdir') / 'girepository-1.0',
+)
