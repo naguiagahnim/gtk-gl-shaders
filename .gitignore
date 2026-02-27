@@ -1,2 +1,21 @@
-/target/
-**/*.rs.bk
+# Rust
+target/
+
+# GObject Introspection generated files
+*.gir
+*.typelib
+*.vapi
+
+# Meson build
+build/
+_build/
+
+# Nix
+result
+result-*
+
+# Misc
+tmp-introspect*/
+g-ir-cpp-*.c
+generated/
+outputs/

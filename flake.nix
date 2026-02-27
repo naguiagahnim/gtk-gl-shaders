@@ -13,6 +13,7 @@
       buildInputs = with pkgs; [
         cargo
         gtk4
+        gjs
         libepoxy
         cairo
         glib
