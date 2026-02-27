@@ -7,8 +7,9 @@ headers = run_command('find', meson.project_source_root() / 'include', '-name', 
 cargo_build = custom_target('cargo-build',
   output: 'libgtkglshaders.so',
   command: [
-    'cargo', 'build', '--release',
-    '--manifest-path', meson.project_source_root() / 'Cargo.toml',
+    'sh', '-c',
+    'cargo build --release --manifest-path ' + meson.project_source_root() / 'Cargo.toml' +
+    ' && cp ' + meson.project_source_root() / 'target/release/libgtkglshaders.so' + ' @OUTPUT@',
   ],
   build_by_default: true,
   console: true,
