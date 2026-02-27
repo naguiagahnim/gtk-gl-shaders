@@ -1,4 +1,4 @@
-# gtk-gl-shaders
+# glarea-gjs
 
 A Rust library that exposes GTK4 `GLArea` widgets with custom GLSL shaders to
 GJS/JavaScript via GObject Introspection. Built for use with
