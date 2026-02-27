@@ -4,6 +4,11 @@ A Rust library that exposes GTK4 `GLArea` widgets with custom GLSL shaders to
 GJS/JavaScript via GObject Introspection. Built for use with
 [AGS](https://github.com/Aylur/ags) / [Astal](https://github.com/Aylur/astal).
 
+<div align="center">
+  <img src="https://github.com/naguiagahnim/glarea-gjs/blob/657815bf231001892dd2b8cbd4aa7f75db676e9b/assets/demo.png" alt="demo" width="600">
+  <p><i>A truly wondrous feat of technology</i></p>
+</div>
+
 ## What it does
 
 You write a GLSL fragment shader, pass it from JavaScript, and get back a
