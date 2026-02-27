@@ -4,12 +4,14 @@ use epoxy::ClearColor;
 use gtk::{glib, prelude::*, GLArea};
 use std::{cell::RefCell, rc::Rc};
 
-/// Texture to upload to the GPU. Fields are FFI-safe.
+/// Raw image data ready to be uploaded to the GPU.
+///
+/// Pixels must be in RGBA8 format (4 bytes per pixel, row-major).
+/// `data.len()` must equal `width * height * 4`.
 #[derive(Clone)]
 pub struct TextureData {
     pub width: i32,
     pub height: i32,
-    /// Raw RGBA8 bytes, length must equal width * height * 4.
     pub data: Vec<u8>,
 }
 
@@ -19,18 +21,31 @@ struct GlState {
     textures: Vec<u32>,
 }
 
-/// Creates a [`GLArea`] that covers its entire surface with a single quad and
-/// runs `fragment_shader` on every fragment.
+/// Creates a GTK [`GLArea`] that runs a custom GLSL fragment shader over a
+/// fullscreen quad.
 ///
-/// The vertex shader exposes no attributes; positions are derived from
-/// `gl_VertexID` so **no vertex buffer is needed**.
+/// The vertex shader is generated internally — it produces a quad that covers
+/// the entire widget using `gl_VertexID`, so no vertex buffer is needed.
+/// It exposes a single `in vec2 uv` interpolant to the fragment shader, with
+/// `(0, 0)` at the bottom-left and `(1, 1)` at the top-right.
 ///
-/// Each element of `textures` is uploaded as a `sampler2D` uniform named
-/// `tex0`, `tex1`, … in the fragment shader.
+/// Each texture in `textures` is uploaded to the GPU on realize and bound to
+/// the sampler uniforms `tex0`, `tex1`, … in the fragment shader.
+///
+/// # Example
+///
+/// ```glsl
+/// in vec2 uv;
+/// uniform sampler2D tex0;
+/// out vec4 out_color;
+///
+/// void main() {
+///     out_color = texture(tex0, uv);
+/// }
+/// ```
 pub fn new_area_for_shader(fragment_shader: String, textures: Vec<TextureData>) -> GLArea {
     let area = GLArea::new();
 
-    // Shared GL state, initialized on realize, dropped on unrealize.
     let state: Rc<RefCell<Option<GlState>>> = Rc::new(RefCell::new(None));
 
     // ── realize ──────────────────────────────────────────────────────────────
@@ -43,25 +58,21 @@ pub fn new_area_for_shader(fragment_shader: String, textures: Vec<TextureData>) 
                 return;
             }
 
+            // GTK can use either OpenGL or OpenGL ES depending on the platform.
+            // The GLSL version header differs between the two.
             let glsl_version = if area.uses_es() {
                 "#version 300 es\nprecision highp float;\n"
             } else {
                 "#version 330 core\n"
             };
 
-            // ------------------------------------------------------------------
-            // Vertex shader – generates a full-screen quad from gl_VertexID,
-            // no VBO required.
-            // Winding:  ID 0 → BL, 1 → BR, 2 → TL, 3 → TR  (TRIANGLE_STRIP)
-            // uv ∈ [0,1]² is passed to the fragment shader.
-            // ------------------------------------------------------------------
             let vert_src = format!(
                 r#"{glsl_version}
 out vec2 uv;
 void main() {{
     vec2 pos = vec2(float(gl_VertexID & 1),
                     float((gl_VertexID >> 1) & 1));
-    uv          = pos;                          // [0,1]²
+    uv          = pos;
     gl_Position = vec4(pos * 2.0 - 1.0, 0.0, 1.0);
 }}
 "#
@@ -72,12 +83,12 @@ void main() {{
             unsafe {
                 let program = link_program(&vert_src, &frag_src);
 
-                // A VAO is mandatory in core profiles even without any buffers.
+                // Core profile requires a VAO even when no vertex attributes
+                // are used.
                 let mut vao = 0u32;
                 epoxy::GenVertexArrays(1, &mut vao);
                 epoxy::BindVertexArray(vao);
 
-                // Upload every texture and bind it to the matching sampler.
                 let mut tex_ids: Vec<u32> = Vec::with_capacity(textures.len());
                 epoxy::UseProgram(program);
 
@@ -118,7 +129,7 @@ void main() {{
                         tex.data.as_ptr() as *const _,
                     );
 
-                    // Bind sampler uniform: tex0, tex1, …
+                    // Bind the texture to its sampler uniform (tex0, tex1, …).
                     let name = format!("tex{i}\0");
                     let loc = epoxy::GetUniformLocation(program, name.as_ptr() as *const i8);
                     if loc >= 0 {
@@ -159,7 +170,8 @@ void main() {{
                         epoxy::BindTexture(epoxy::TEXTURE_2D, id);
                     }
 
-                    // 4 vertices, no index buffer → two triangles as a strip.
+                    // TRIANGLE_STRIP with 4 vertices produces two triangles
+                    // that together cover the entire quad.
                     epoxy::DrawArrays(epoxy::TRIANGLE_STRIP, 0, 4);
 
                     epoxy::Flush();
