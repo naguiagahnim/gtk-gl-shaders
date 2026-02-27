@@ -25,17 +25,11 @@
       nativeBuildInputs = with pkgs; [
         meson
         ninja
-        cargo
-        rustc
         pkg-config
         gobject-introspection
       ];
       buildInputs = with pkgs; [gtk4 glib libepoxy];
       mesonFlags = ["-Dprebuilt_so=${rustLib}/lib/libgtkglshaders.so"];
-      preConfigure = ''
-        mkdir -p target/release
-        cp ${rustLib}/lib/libgtkglshaders.so target/release/
-      '';
     };
   in {
     packages."x86_64-linux".default = girepo;
