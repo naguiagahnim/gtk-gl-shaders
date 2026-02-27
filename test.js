@@ -19,7 +19,7 @@ in vec2 uv;
         out_color = texture(tex0, uv);
     }
 `,
-  ["./img.jpg"],
+  ["./assets/img.jpg"],
 );
 
 win.set_child(area);
