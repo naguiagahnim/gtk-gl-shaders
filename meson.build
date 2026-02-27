@@ -2,6 +2,8 @@ project('gtk-gl-shaders', version: '0.1.0')
 
 gnome = import('gnome')
 
+headers = run_command('find', meson.project_source_root() / 'include', '-name', '*.h', check: true).stdout().strip().split('\n')
+
 cargo_build = custom_target('cargo-build',
   output: 'libgtkglshaders.so',
   command: [
@@ -29,7 +31,7 @@ gir = custom_target('gir',
     '--include', 'Gtk-4.0',     '--pkg', 'gtk4',
     '--pkg-export', 'GtkGlShaders-0.1',
     '--output', '@OUTPUT@',
-    meson.project_source_root() / 'include/testobj.h',
+    headers,
   ],
 )
 
