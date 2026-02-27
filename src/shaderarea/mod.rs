@@ -43,13 +43,11 @@ pub fn new_area_for_shader(fragment_shader: String, textures: Vec<TextureData>) 
                 return;
             }
 
-            // Choose GLSL version based on the API in use.
-            // let glsl_version = if area.api() == gtk::gdk::GLAPI::GLES {
-            //     "#version 300 es\nprecision highp float;\n"
-            // } else {
-            //     "#version 330 core\n"
-            // };
-            let glsl_version = "#version 330 core\n";
+            let glsl_version = if area.uses_es() {
+                "#version 300 es\nprecision highp float;\n"
+            } else {
+                "#version 330 core\n"
+            };
 
             // ------------------------------------------------------------------
             // Vertex shader – generates a full-screen quad from gl_VertexID,

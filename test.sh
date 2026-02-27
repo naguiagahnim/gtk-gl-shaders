@@ -2,6 +2,8 @@
 set -e
 
 echo "==> Building..."
+rm -rf build
+meson setup build
 meson compile -C build
 
 echo "==> Running GJS test..."
