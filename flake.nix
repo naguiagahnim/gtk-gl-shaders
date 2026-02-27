@@ -9,6 +9,28 @@
   }: let
     pkgs = nixpkgs.legacyPackages."x86_64-linux";
   in {
+    packages."x86_64-linux".default = pkgs.stdenv.mkDerivation {
+      pname = "glarea-gjs";
+      version = "0.1.0";
+
+      src = ./.;
+
+      nativeBuildInputs = with pkgs; [
+        meson
+        ninja
+        pkg-config
+        gobject-introspection
+        cargo
+        rustc
+      ];
+
+      buildInputs = with pkgs; [
+        gtk4
+        glib
+        libepoxy
+      ];
+    };
+
     devShells."x86_64-linux".default = pkgs.mkShell {
       buildInputs = with pkgs; [
         cargo
