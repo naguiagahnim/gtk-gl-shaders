@@ -16,12 +16,8 @@
         rustfmt
         clippy
         rust-analyzer
-        sqls
       ];
       env.RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
-      shellHook = ''
-        exec zellij --layout dev attach gl-ags -c
-      '';
     };
   };
 }

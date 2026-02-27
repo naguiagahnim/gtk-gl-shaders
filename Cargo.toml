@@ -1,6 +1,16 @@
 [package]
 name = "gtk-gl-shaders"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+
+[lib]
+name = "gtkglshaders"
+crate-type = ["cdylib"]  
 
 [dependencies]
+gtk = { package = "gtk4", version = "0.9" }
+gdk4 = "0.9"
+epoxy = "0.1"          
+cairo-rs = "0.20"
+glib = "0.20"
+gobject-sys = "0.20"
