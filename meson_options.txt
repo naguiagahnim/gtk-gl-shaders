@@ -1,0 +1,1 @@
+option('prebuilt_so', type: 'string', value: '', description: 'Path to prebuilt libgtkglshaders.so')

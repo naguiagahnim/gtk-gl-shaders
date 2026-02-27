@@ -1,22 +1,36 @@
-project('gtk-gl-shaders', version: '0.1.0')
-
+project('glarea-gjs', version: '0.1.0')
 gnome = import('gnome')
-
 headers = run_command('find', meson.project_source_root() / 'include', '-name', '*.h', check: true).stdout().strip().split('\n')
 
-cargo_build = custom_target('cargo-build',
-  output: 'libgtkglshaders.so',
-  command: [
-    'sh', '-c',
-    'cargo build --release --manifest-path ' + meson.project_source_root() / 'Cargo.toml' +
-    ' && cp ' + meson.project_source_root() / 'target/release/libgtkglshaders.so' + ' @OUTPUT@',
-  ],
-  build_by_default: true,
-  console: true,
-)
+prebuilt_so = get_option('prebuilt_so')
+
+if prebuilt_so == ''
+  so_target = custom_target('cargo-build',
+    output: 'libgtkglshaders.so',
+    command: [
+      'sh', '-c',
+      'cargo build --release --manifest-path ' + meson.project_source_root() / 'Cargo.toml' +
+      ' && cp ' + meson.project_source_root() / 'target/release/libgtkglshaders.so' + ' @OUTPUT@',
+    ],
+    build_by_default: true,
+    console: true,
+    install: true,
+    install_dir: get_option('libdir'),
+  )
+  so_library_path = meson.project_source_root() / 'target/release'
+else
+  so_target = custom_target('copy-so',
+    output: 'libgtkglshaders.so',
+    command: ['cp', prebuilt_so, '@OUTPUT@'],
+    build_by_default: true,
+    install: true,
+    install_dir: get_option('libdir'),
+  )
+  so_library_path = meson.current_build_dir()
+endif
 
 gir = custom_target('gir',
-  input: cargo_build,
+  input: so_target,
   output: 'GtkGlShaders-0.1.gir',
   command: [
     'g-ir-scanner', '-v', '--warn-all',
@@ -26,7 +40,7 @@ gir = custom_target('gir',
     '--symbol-prefix', 'gtk_gl_shaders',
     '-I' + meson.project_source_root() / 'include',
     '--library=gtkglshaders',
-    '--library-path', meson.project_source_root() / 'target/release',
+    '--library-path', so_library_path,
     '--include', 'GLib-2.0',    '--pkg', 'glib-2.0',
     '--include', 'GObject-2.0', '--pkg', 'gobject-2.0',
     '--include', 'Gtk-4.0',     '--pkg', 'gtk4',

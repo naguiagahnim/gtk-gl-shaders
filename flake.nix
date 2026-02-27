@@ -8,28 +8,37 @@
     nixpkgs,
   }: let
     pkgs = nixpkgs.legacyPackages."x86_64-linux";
-  in {
-    packages."x86_64-linux".default = pkgs.stdenv.mkDerivation {
-      pname = "glarea-gjs";
+
+    rustLib = pkgs.rustPlatform.buildRustPackage {
+      pname = "glarea-gjs-lib";
       version = "0.1.0";
-
       src = ./.;
+      cargoLock.lockFile = ./Cargo.lock;
+      buildInputs = with pkgs; [gtk4 glib libepoxy];
+      nativeBuildInputs = with pkgs; [pkg-config];
+    };
 
+    girepo = pkgs.stdenv.mkDerivation {
+      pname = "glarea-gjs-lib";
+      version = "0.1.0";
+      src = ./.;
       nativeBuildInputs = with pkgs; [
         meson
         ninja
-        pkg-config
-        gobject-introspection
         cargo
         rustc
+        pkg-config
+        gobject-introspection
       ];
-
-      buildInputs = with pkgs; [
-        gtk4
-        glib
-        libepoxy
-      ];
+      buildInputs = with pkgs; [gtk4 glib libepoxy];
+      mesonFlags = ["-Dprebuilt_so=${rustLib}/lib/libgtkglshaders.so"];
+      preConfigure = ''
+        mkdir -p target/release
+        cp ${rustLib}/lib/libgtkglshaders.so target/release/
+      '';
     };
+  in {
+    packages."x86_64-linux".default = girepo;
 
     devShells."x86_64-linux".default = pkgs.mkShell {
       buildInputs = with pkgs; [
