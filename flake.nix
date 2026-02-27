@@ -29,6 +29,7 @@
         gobject-introspection
       ];
       buildInputs = with pkgs; [gtk4 glib libepoxy];
+      propagatedBuildInputs = [rustLib];
       mesonFlags = ["-Dprebuilt_so=${rustLib}/lib/libgtkglshaders.so"];
     };
   in {
