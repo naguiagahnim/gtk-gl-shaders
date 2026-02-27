@@ -12,6 +12,12 @@
     devShells."x86_64-linux".default = pkgs.mkShell {
       buildInputs = with pkgs; [
         cargo
+        gtk4
+        libepoxy
+        cairo
+        glib
+        pkg-config
+        gobject-introspection
         rustc
         rustfmt
         clippy
