@@ -1,6 +1,6 @@
 # glarea-gjs
 
-A Rust library that exposes GTK4 `GLArea` widgets with custom GLSL shaders to
+A library made in Rust that exposes GTK4 `GLArea` widgets with custom GLSL shaders to
 GJS/JavaScript via GObject Introspection. Built for use with
 [AGS](https://github.com/Aylur/ags) / [Astal](https://github.com/Aylur/astal).
 
@@ -31,33 +31,78 @@ const area = GtkGlShaders.new_area_for_shader(
 `,
   ["/path/to/image.png"],
 );
+
+area.set_size_request(200, 200)
 ```
 
 The `uv` interpolant goes from `(0, 0)` at the bottom-left to `(1, 1)` at the
 top-right. Textures are accessible as `tex0`, `tex1`, etc.
 
-## Requirements
+## Features & Limitations
 
-- NixOS or any Linux with GTK4, GJS, GObject Introspection, libepoxy
-- Rust (stable)
+### Supported
+- **GLSL Fragment Shaders** — Write custom fragment shaders in GLSL
+- **Texture Loading** — Pass image paths, get them as `tex0`, `tex1`, etc.
+- **GTK4 Integration** — Returns a standard `GLArea` widget that works anywhere in GTK4
+- **Automatic Cleanup** — OpenGL resources are properly freed when widgets are destroyed
+- **Multiple Instances** — Create as many shader widgets as you need
+
+### Not Supported (yet?)
+- **Vertex Shaders** — Only fragment shaders are supported (fullscreen quad is hardcoded)
+- **Uniform Variables** — No way to pass custom uniforms (time, mouse position, etc.) from JS yet
+- **Dynamic Texture Updates** — Textures are set at creation time and cannot be changed
+- **Animation** — No built-in frame callback or time uniform
+- **3D/Geometry** — This is strictly 2D fragment shader rendering
+
+Pull requests to add these features are welcome!
+
+## Dependencies
+
+### Runtime
+- GTK4 with OpenGL support
+- GJS (GNOME JavaScript)
+- libepoxy
+
+### Build-time
+- Rust (stable toolchain)
 - Meson + Ninja
+- pkg-config
+- GObject Introspection
+
+### NixOS / Nix
+A complete development environment is provided via `flake.nix`:
+```bash
+nix develop
+```
+
+This includes all necessary dependencies and drops you into a shell ready to build.
 
 ## Building
 
+### With Nix (recommended)
 ```bash
-nix develop
+nix develop          # Enter dev shell
+meson setup build    # Configure build
+meson compile -C build
+```
+
+### Without Nix
+Ensure you have the dependencies installed via your package manager, then:
+```bash
 meson setup build
 meson compile -C build
 ```
 
-## Running the test
+## Testing
 
+A test script is provided to verify the library works:
 ```bash
 ./test.sh
 ```
 
-## Project structure
+This will compile the library and run a simple demo with a test shader, through the `test.js` file.
 
+## Project structure
 ```
 src/
   lib.rs
@@ -66,9 +111,11 @@ src/
     ffi.rs      # C FFI wrapper exposed via GObject Introspection
 include/
   shaderarea.h  # C header for g-ir-scanner
+flake.nix       # Nix development environment
 ```
+
 
 ## Acknowledgements
 
 Special thanks to [@Rayzeq](https://github.com/Rayzeq) for figuring out the
-epoxy initialization issue and for the help along the way
+epoxy initialization issue and for the help along the way.
