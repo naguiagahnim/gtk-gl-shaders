@@ -2,11 +2,15 @@ mod ffi;
 
 use epoxy::ClearColor;
 use gtk::{glib, prelude::*, GLArea};
-use std::{collections::HashMap, sync::{Arc, Mutex, RwLock}};
 use once_cell::sync::Lazy;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, RwLock},
+};
 
 // Global state map for uniform updates
-static STATE_MAP: Lazy<RwLock<HashMap<usize, Arc<Mutex<Option<GlState>>>>>> = Lazy::new(|| RwLock::new(HashMap::new()));
+static STATE_MAP: Lazy<RwLock<HashMap<usize, Arc<Mutex<Option<GlState>>>>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
 
 /// Raw image data ready to be uploaded to the GPU.
 ///
@@ -173,17 +177,23 @@ void main() {{
                 }
 
                 epoxy::UseProgram(0);
-                
+
                 // Build uniforms map by looking up locations
                 let mut uniforms_map = HashMap::new();
                 for (name, value) in &uniforms {
                     let name_c = format!("{}\0", name);
                     let loc = epoxy::GetUniformLocation(program, name_c.as_ptr() as *const i8);
                     if loc >= 0 {
-                        uniforms_map.insert(name.clone(), UniformInfo { location: loc, value: value.clone() });
+                        uniforms_map.insert(
+                            name.clone(),
+                            UniformInfo {
+                                location: loc,
+                                value: value.clone(),
+                            },
+                        );
                     }
                 }
-                
+
                 *state.lock().unwrap() = Some(GlState {
                     program,
                     vao,
@@ -270,20 +280,22 @@ void main() {{
 /// doesn't exist in the shader.
 pub fn set_uniform(area: &GLArea, name: &str, value: UniformValue) -> bool {
     let widget_ptr = area.as_ptr() as usize;
-    
+
     let state_map = STATE_MAP.read().unwrap();
     let state_arc = match state_map.get(&widget_ptr) {
         Some(arc) => arc.clone(),
         None => return false,
     };
     drop(state_map);
-    
-    let Ok(state_guard) = state_arc.lock() else { return false; };
+
+    let Ok(state_guard) = state_arc.lock() else {
+        return false;
+    };
     let state = match state_guard.as_ref() {
         Some(s) => s,
         None => return false,
     };
-    
+
     // Check if uniform exists or find it
     let location = if let Some(info) = state.uniforms.get(name) {
         info.location
@@ -298,19 +310,17 @@ pub fn set_uniform(area: &GLArea, name: &str, value: UniformValue) -> bool {
 
     // Update the uniform value
     drop(state_guard);
-    let Ok(mut state_mut) = state_arc.lock() else { return false; };
+    let Ok(mut state_mut) = state_arc.lock() else {
+        return false;
+    };
     let state = state_mut.as_mut().unwrap();
-    
+
     if let Some(info) = state.uniforms.get_mut(name) {
         info.value = value;
     } else {
-        state.uniforms.insert(
-            name.to_string(),
-            UniformInfo {
-                location,
-                value,
-            },
-        );
+        state
+            .uniforms
+            .insert(name.to_string(), UniformInfo { location, value });
     }
 
     true

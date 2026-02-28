@@ -34,11 +34,22 @@ impl UniformValueFFI {
             UniformType::Float => UniformValue::Float(self.data[0]),
             UniformType::Vec2 => UniformValue::Vec2([self.data[0], self.data[1]]),
             UniformType::Vec3 => UniformValue::Vec3([self.data[0], self.data[1], self.data[2]]),
-            UniformType::Vec4 => UniformValue::Vec4([self.data[0], self.data[1], self.data[2], self.data[3]]),
+            UniformType::Vec4 => {
+                UniformValue::Vec4([self.data[0], self.data[1], self.data[2], self.data[3]])
+            }
             UniformType::Int => UniformValue::Int(self.data[0] as i32),
             UniformType::IVec2 => UniformValue::IVec2([self.data[0] as i32, self.data[1] as i32]),
-            UniformType::IVec3 => UniformValue::IVec3([self.data[0] as i32, self.data[1] as i32, self.data[2] as i32]),
-            UniformType::IVec4 => UniformValue::IVec4([self.data[0] as i32, self.data[1] as i32, self.data[2] as i32, self.data[3] as i32]),
+            UniformType::IVec3 => UniformValue::IVec3([
+                self.data[0] as i32,
+                self.data[1] as i32,
+                self.data[2] as i32,
+            ]),
+            UniformType::IVec4 => UniformValue::IVec4([
+                self.data[0] as i32,
+                self.data[1] as i32,
+                self.data[2] as i32,
+                self.data[3] as i32,
+            ]),
         }
     }
 }
@@ -91,7 +102,12 @@ pub extern "C" fn gtk_gl_shaders_new_area_for_shader(
     texture_paths: *const *const std::os::raw::c_char,
     texture_count: i32,
 ) -> *mut gtk::ffi::GtkWidget {
-    gtk_gl_shaders_new_area_for_shader_with_uniforms(shader, texture_paths, texture_count, std::ptr::null())
+    gtk_gl_shaders_new_area_for_shader_with_uniforms(
+        shader,
+        texture_paths,
+        texture_count,
+        std::ptr::null(),
+    )
 }
 
 /// Parse uniform specification string and return HashMap of uniforms.
@@ -99,19 +115,19 @@ pub extern "C" fn gtk_gl_shaders_new_area_for_shader(
 /// Types: f (float), v2 (vec2), v3 (vec3), v4 (vec4), i (int)
 fn parse_uniform_spec(spec: &str) -> HashMap<String, UniformValue> {
     let mut uniforms = HashMap::new();
-    
+
     for uniform_str in spec.split(';') {
         let uniform_str = uniform_str.trim();
         if uniform_str.is_empty() {
             continue;
         }
-        
+
         let parts: Vec<&str> = uniform_str.split(':').collect();
         if parts.len() != 3 {
             eprintln!("Invalid uniform spec: {}", uniform_str);
             continue;
         }
-        
+
         let name = parts[0].to_string();
         let type_str = parts[1];
         let values_str = parts[2];
@@ -119,7 +135,7 @@ fn parse_uniform_spec(spec: &str) -> HashMap<String, UniformValue> {
             .split(',')
             .filter_map(|s| s.trim().parse().ok())
             .collect();
-        
+
         let value = match type_str {
             "f" => UniformValue::Float(values.get(0).copied().unwrap_or(0.0)),
             "v2" => UniformValue::Vec2([
@@ -143,10 +159,10 @@ fn parse_uniform_spec(spec: &str) -> HashMap<String, UniformValue> {
                 continue;
             }
         };
-        
+
         uniforms.insert(name, value);
     }
-    
+
     uniforms
 }
 
