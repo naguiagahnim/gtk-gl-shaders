@@ -1,33 +1,37 @@
-/* This file mainly serves the purpose of testing if we can correctly import the lib through GJS.
-DO NOT MOVE IT as it is referenced in the test.sh Bash file */
-
-import Gtk from "gi://Gtk?version=4.0";
-import GLib from "gi://GLib";
-import GtkGlShaders from "gi://GtkGlShaders";
-
 Gtk.init();
 
-const win = new Gtk.Window({ title: "Test GLArea - Uniform Animation Test" });
+const win = new Gtk.Window({ title: "Test GLArea - Rainbow Animation" });
 win.set_default_size(400, 400);
 
-// Shader with a time uniform for animation
+// Shader with a time uniform for rainbow animation
 const fragmentShader = `
 in vec2 uv;
 uniform sampler2D tex0;
 uniform float time;
-uniform vec4 color;
 out vec4 out_color;
+
+// Convert HSV to RGB
+vec3 hsv2rgb(vec3 c) {
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
 
 void main() {
     vec4 texColor = texture(tex0, uv);
-    // Animate color using time: pulse effect
-    float pulse = (sin(time * 2.0) + 1.0) * 0.5;
-    out_color = texColor * color * (0.5 + 0.5 * pulse);
+    
+    // Cycle through rainbow colors (HSV with full saturation and value)
+    float hue = fract(time * 0.1);  // Slow color cycle
+    vec3 rainbow = hsv2rgb(vec3(hue, 1.0, 1.0));
+    
+    // Blend texture with rainbow color
+    out_color = vec4(texColor.rgb * rainbow, texColor.a);
 }
 `;
 
 // Create with initial uniforms using string spec format: "name:type:v1,v2,v3,v4;..."
-const uniformSpec = "time:f:0.0;color:v4:1.0,1.0,1.0,1.0";
+// const uniformSpec = "time:f:0.0;color:v4:1.0,1.0,1.0,1.0";
+const uniformSpec = "time:f:0.0";
 
 const area = GtkGlShaders.new_area_for_shader_with_uniforms(
     fragmentShader,
@@ -64,7 +68,7 @@ const updateUniform = () => {
 };
 
 // Start animation loop (60 FPS)
-timeoutSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 16, updateUniform);
+timeoutSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, updateUniform);
 
 win.show();
 loop.run();
