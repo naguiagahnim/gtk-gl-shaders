@@ -118,4 +118,4 @@ flake.nix       # Nix development environment
 ## Acknowledgements
 
 Special thanks to [@Rayzeq](https://github.com/Rayzeq) for figuring out the
-epoxy initialization issue and for the help along the way.
+epoxy initialization issue, for implementing uniforms and for all the help along the way.
