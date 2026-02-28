@@ -31,6 +31,14 @@
       buildInputs = with pkgs; [gtk4 glib libepoxy];
       propagatedBuildInputs = [rustLib];
       mesonFlags = ["-Dprebuilt_so=${rustLib}/lib/libgtkglshaders.so"];
+
+      meta = with pkgs.lib; {
+        description = "GTK4 GLArea widget with custom GLSL shaders, exposed to GJS/JavaScript via GObject Introspection ";
+        homepage = "https://github.com/naguiagahnim/glarea-gjs";
+        license = licenses.gpl3Only;
+        platforms = platforms.linux;
+        maintainers = [];
+      };
     };
   in {
     packages."x86_64-linux".default = girepo;
