@@ -3,18 +3,13 @@ use std::{
     collections::HashMap,
     ffi::c_void,
     path::{Path, PathBuf},
-    ptr,
-    sync::Once,
 };
 
 use glib::Propagation;
 use gtk::{GLArea, glib, prelude::*, subclass::prelude::*};
 use image::GenericImageView;
-use libloading::os::unix::Library;
 
 use super::Uniform;
-
-static INIT_EPOXY: Once = Once::new();
 
 /// The parts of the GL state that need to be shared
 #[derive(Debug)]
@@ -74,8 +69,6 @@ impl ShaderArea {
         textures: Vec<PathBuf>,
         uniforms: HashMap<String, Uniform>,
     ) {
-        INIT_EPOXY.call_once(Self::init_epoxy);
-
         let area = self.area.borrow();
         let area = area
             .as_ref()
@@ -245,21 +238,6 @@ void main() {{
 
         // based on the documentation this shouldn't be necessary, but it is
         area.queue_render();
-    }
-
-    /// Loads epoxy's OpenGL function pointers from the system libepoxy.
-    ///
-    /// This needs to happen before any GL call, and specifically before GTK's
-    /// [`GLArea`] tries to render. When the library is loaded by GJS, GTK is already
-    /// initialized but epoxy hasn't been pointed at the right symbols yet — this
-    /// call fixes that.
-    fn init_epoxy() {
-        let library = unsafe { Library::new("libepoxy.so.0") }.expect("Can't find libepoxy.so.0");
-        epoxy::load_with(|name| {
-            unsafe { library.get::<_>(name.as_bytes()) }
-                .map(|symbol| *symbol)
-                .unwrap_or(ptr::null())
-        });
     }
 
     unsafe fn compile_shader(src: &str, kind: u32) -> u32 {

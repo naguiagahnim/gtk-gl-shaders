@@ -1,13 +1,14 @@
-use std::{collections::HashMap, ffi::c_char, path::PathBuf, ptr};
+use std::{collections::HashMap, ffi::c_char, path::PathBuf};
 
 use glib::{
-    GString, Value, Variant,
-    ffi::{self, GType, GVariant},
+    GString, Variant,
+    ffi::{GType, GVariant},
     subclass::types::ObjectSubclass,
-    translate::*,
+    translate::{FromGlibPtrNone, IntoGlib, ToGlibPtr},
     types::StaticType,
 };
-use gobject_sys::GValue;
+
+use crate::init;
 
 use super::Uniform;
 
@@ -16,8 +17,7 @@ pub type ShaderArea = <super::imp::ShaderArea as ObjectSubclass>::Instance;
 // this functions is called by g-ir-scanner
 #[unsafe(no_mangle)]
 pub extern "C" fn gtk_gl_shaders_shader_area_get_type() -> GType {
-    // gtk need to be initialized or it panics
-    gtk::init().expect("GTK initialization failed");
+    init();
 
     <super::ShaderArea as StaticType>::static_type().into_glib()
 }
@@ -54,6 +54,10 @@ pub unsafe extern "C" fn gtk_gl_shaders_shader_area_new(
 
         if let Some(uniforms) = uniforms.get::<HashMap<String, Variant>>() {
             for (name, value) in uniforms {
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    reason = "Variant can't contain f32, so we have to pass through a f64"
+                )]
                 let value = if let Some(value) = value.get::<f64>() {
                     Uniform::Float(value as f32)
                 } else if let Some(value) = value.get::<Vec<f64>>() {

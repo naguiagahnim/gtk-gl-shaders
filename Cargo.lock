@@ -408,7 +408,6 @@ version = "0.1.0"
 dependencies = [
  "epoxy",
  "glib",
- "gobject-sys",
  "gtk4",
  "image",
  "libloading",
