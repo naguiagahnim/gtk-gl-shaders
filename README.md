@@ -258,7 +258,7 @@ effect.
 
 ```
 src/
-  lib.rs                          # Library entry point, GTK/OpenGL initialization
+  lib.rs                          # Library entry point, OpenGL initialization
   shader_area/
     mod.rs                        # ShaderArea GLArea subclass wrapper, Uniform enum
     imp.rs                        # OpenGL implementation (GLAreaImpl, shader compilation, textures, uniforms)

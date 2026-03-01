@@ -32,8 +32,7 @@ pub type ShaderArea = <super::imp::ShaderArea as ObjectSubclass>::Instance;
 ///
 /// # Safety
 ///
-/// This function is safe to call from C and will initialize the library
-/// on first call.
+/// This function is safe to call from C.
 #[unsafe(no_mangle)]
 pub extern "C" fn gtk_gl_shaders_shader_area_get_type() -> GType {
     <super::ShaderArea as StaticType>::static_type().into_glib()

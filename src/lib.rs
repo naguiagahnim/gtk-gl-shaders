@@ -12,7 +12,7 @@
 //!
 //! # Initialization
 //!
-//! The library automatically initializes GTK and libepoxy on first use.
+//! The library automatically initializes libepoxy on first use.
 //! This is handled internally by the [`init()`] function.
 
 use glib::{GlibLogger, GlibLoggerDomain, GlibLoggerFormat};
@@ -24,19 +24,18 @@ mod shader_area;
 
 pub use shader_area::ShaderArea;
 
-/// Global initialization guard - ensures one-time setup of GTK and OpenGL.
+/// Global initialization guard - ensures one-time setup of OpenGL.
 static INIT: Once = Once::new();
 
 /// GLIB logger that forwards Rust log messages to GLib's logging system.
 static GLIB_LOGGER: GlibLogger =
     GlibLogger::new(GlibLoggerFormat::Plain, GlibLoggerDomain::CrateTarget);
 
-/// Initializes the library: GTK, libepoxy, and logging.
+/// Initializes the library: libepoxy, and logging.
 ///
 /// This function is called automatically by FFI entry points and should not
 /// need to be called manually. It ensures:
 ///
-/// - GTK is initialized for widget operations
 /// - libepoxy is loaded for OpenGL function resolution
 /// - The Rust `log` crate is configured to forward to GLib's logger
 fn init() {
