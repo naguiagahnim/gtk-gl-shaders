@@ -7,6 +7,7 @@ use glib::{
     translate::{FromGlibPtrNone, IntoGlib, ToGlibPtr},
     types::StaticType,
 };
+use log::error;
 
 use crate::init;
 
@@ -71,7 +72,7 @@ pub unsafe extern "C" fn gtk_gl_shaders_shader_area_new(
                             value[3] as f32,
                         ]),
                         n => {
-                            println!("Uniform '{name}' has an invalid number of elements: {n}");
+                            error!("Uniform '{name}' has an invalid number of elements: {n}");
                             continue;
                         }
                     }
@@ -83,18 +84,18 @@ pub unsafe extern "C" fn gtk_gl_shaders_shader_area_new(
                         3 => Uniform::IVec3([value[0], value[1], value[2]]),
                         4 => Uniform::IVec4([value[0], value[1], value[2], value[3]]),
                         n => {
-                            println!("Uniform '{name}' has an invalid number of elements: {n}");
+                            error!("Uniform '{name}' has an invalid number of elements: {n}");
                             continue;
                         }
                     }
                 } else {
-                    println!("Uniform '{name}' has unknown type");
+                    error!("Uniform '{name}' has unknown type");
                     continue;
                 };
                 result.insert(name, value);
             }
         } else {
-            println!("Invalid value passed to `uniforms`");
+            error!("Invalid value passed to `uniforms`");
         }
 
         result

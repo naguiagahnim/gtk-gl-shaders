@@ -8,6 +8,7 @@ use std::{
 use glib::Propagation;
 use gtk::{GLArea, glib, prelude::*, subclass::prelude::*};
 use image::GenericImageView;
+use log::{error, warn};
 
 use super::Uniform;
 
@@ -79,7 +80,7 @@ impl ShaderArea {
         area.connect_realize(move |area| {
             area.make_current();
             if let Some(e) = area.error() {
-                println!("Failed to initialize shader area: {e}");
+                error!("Failed to switch OpenGL context: {e}");
                 return;
             }
 
@@ -128,7 +129,7 @@ void main() {{
                     if loc >= 0 {
                         epoxy::Uniform1i(loc, i as i32);
                     } else {
-                        println!("Warn: texture not used in shader: {}", tex.display());
+                        warn!("Texture not used in shader: {}", tex.display());
                     }
                 }
 
@@ -139,7 +140,7 @@ void main() {{
                     if loc >= 0 {
                         uniform_map.insert(name.clone(), (loc, value.clone()));
                     } else {
-                        println!("Warn: uniform not used in shader: {name}");
+                        warn!("Uniform not used in shader: {name}");
                     }
                 }
 
@@ -157,7 +158,7 @@ void main() {{
         area.connect_unrealize(move |area| {
             area.make_current();
             if let Some(e) = area.error() {
-                println!("Failed to initialize shader area: {e}");
+                error!("Failed to switch OpenGL context: {e}");
                 return;
             }
 
@@ -175,7 +176,7 @@ void main() {{
         let this = self.downgrade();
         area.connect_render(move |area, _ctx| {
             if let Some(e) = area.error() {
-                println!("Failed to initialize shader area: {e}");
+                error!("Failed to switch OpenGL context: {e}");
                 return Propagation::Stop;
             }
 
@@ -210,13 +211,13 @@ void main() {{
         let area = self.area.borrow();
         let mut state = self.gl_state.borrow_mut();
         let (Some(area), Some(state)) = (area.as_ref(), state.as_mut()) else {
-            println!("Couldn't set uniform because the widget isn't being rendered");
+            warn!("Couldn't set uniform because the widget isn't being rendered");
             return;
         };
 
         area.make_current();
         if let Some(e) = area.error() {
-            println!("Failed to initialize set uniform: {e}");
+            error!("Failed to switch OpenGL context: {e}");
             return;
         }
 
@@ -229,7 +230,7 @@ void main() {{
         };
 
         if location < 0 {
-            println!("Warn: uniform not used in shader: {name}");
+            warn!("Uniform not used in shader: {name}");
             return;
         }
 
@@ -297,7 +298,7 @@ void main() {{
         let image = match image::open(path) {
             Ok(x) => x,
             Err(e) => {
-                println!("Failed to load texture: {e}");
+                error!("Failed to load texture: {e}");
                 return None;
             }
         };

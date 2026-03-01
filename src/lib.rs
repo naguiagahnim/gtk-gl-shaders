@@ -1,4 +1,6 @@
+use glib::{GlibLogger, GlibLoggerDomain, GlibLoggerFormat};
 use libloading::os::unix::Library;
+use log::LevelFilter;
 use std::{ptr, sync::Once};
 
 mod shader_area;
@@ -6,6 +8,8 @@ mod shader_area;
 pub use shader_area::ShaderArea;
 
 static INIT: Once = Once::new();
+static GLIB_LOGGER: GlibLogger =
+    GlibLogger::new(GlibLoggerFormat::Plain, GlibLoggerDomain::CrateTarget);
 
 fn init() {
     INIT.call_once(|| {
@@ -19,5 +23,9 @@ fn init() {
                 .map(|symbol| *symbol)
                 .unwrap_or(ptr::null())
         });
+
+        // initialize the `log` crate to forward to glib's logger
+        let _ = log::set_logger(&GLIB_LOGGER);
+        log::set_max_level(LevelFilter::Debug);
     });
 }

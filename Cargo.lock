@@ -310,6 +310,7 @@ dependencies = [
  "glib-sys",
  "gobject-sys",
  "libc",
+ "log",
  "memchr",
  "smallvec",
 ]
@@ -411,6 +412,7 @@ dependencies = [
  "gtk4",
  "image",
  "libloading",
+ "log",
 ]
 
 [[package]]
