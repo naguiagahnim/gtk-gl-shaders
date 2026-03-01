@@ -1,3 +1,3 @@
-mod shaderarea;
-mod testobj;
-pub use testobj::TestObj;
+mod shader_area;
+
+pub use shader_area::ShaderArea;

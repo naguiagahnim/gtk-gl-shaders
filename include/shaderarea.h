@@ -3,12 +3,20 @@
 #include <gtk/gtk.h>
 
 /**
- * gtk_gl_shaders_new_area_for_shader:
- * @shader: (not nullable): GLSL fragment shader source
- * @texture_paths: (array length=texture_count) (nullable): paths to image files
- * @texture_count: number of textures
- * Returns: (transfer full): a new GLArea
+ * GtkGlShadersShaderArea:
+ *
+ * A widget to easily render OpenGL shaders.
  */
-GtkWidget *gtk_gl_shaders_new_area_for_shader(const char *shader,
-                                              const char **texture_paths,
-                                              int texture_count);
+G_DECLARE_FINAL_TYPE(GtkGlShadersShaderArea, gtk_gl_shaders_shader_area,
+                     GTK_GL_SHADERS, SHADER_AREA, GtkWidget)
+
+/**
+ * gtk_gl_shaders_shader_area_new:
+ * @shader: (not nullable): GLSL fragment shader source
+ * @textures: (array length=textures_count) (nullable): paths to image files
+ * @textures_count: number of textures
+ * Returns: (transfer full): a new GtkGlShadersShaderArea
+ */
+GtkGlShadersShaderArea *
+gtk_gl_shaders_shader_area_new(const char *shader, const char **textures,
+                               unsigned int textures_count);

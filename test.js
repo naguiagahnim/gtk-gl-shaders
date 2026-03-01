@@ -1,8 +1,8 @@
 /* This file mainly serves the purpose of testing if we can correctly import the lib through GJS.
 DO NOT MOVE IT as it is referenced in the test.sh Bash file */
 
-import Gtk from "gi://Gtk?version=4.0";
 import GLib from "gi://GLib";
+import Gtk from "gi://Gtk?version=4.0";
 import GtkGlShaders from "gi://GtkGlShaders";
 
 Gtk.init();
@@ -10,7 +10,7 @@ Gtk.init();
 const win = new Gtk.Window({ title: "Test GLArea" });
 win.set_default_size(400, 400);
 
-const area = GtkGlShaders.new_area_for_shader(
+const area = GtkGlShaders.ShaderArea.new(
   `
 in vec2 uv;
     uniform sampler2D tex0;
