@@ -310,6 +310,7 @@ dependencies = [
  "glib-sys",
  "gobject-sys",
  "libc",
+ "log",
  "memchr",
  "smallvec",
 ]
@@ -406,14 +407,12 @@ dependencies = [
 name = "gtk-gl-shaders"
 version = "0.1.0"
 dependencies = [
- "cairo-rs",
  "epoxy",
- "gdk4",
  "glib",
- "gobject-sys",
  "gtk4",
  "image",
  "libloading",
+ "log",
 ]
 
 [[package]]
