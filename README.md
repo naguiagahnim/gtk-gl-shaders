@@ -5,7 +5,7 @@ shaders to GJS/JavaScript via GObject Introspection. Built for use with
 [AGS](https://github.com/Aylur/ags) / [Astal](https://github.com/Aylur/astal).
 
 <div align="center">
-  <img src="https://github.com/naguiagahnim/glarea-gjs/blob/657815bf231001892dd2b8cbd4aa7f75db676e9b/assets/rainbow-demo.gif" alt="demo" width="600">
+  <img src="https://github.com/naguiagahnim/glarea-gjs/blob/0b6d2742179135109cc0f59293ed3cce79384c70/assets/rainbow-demo.gif" alt="demo" width="600">
   <p><i>A truly wondrous feat of technology</i></p>
 </div>
 
