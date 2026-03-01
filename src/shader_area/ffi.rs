@@ -22,8 +22,6 @@ use glib::{
 };
 use log::error;
 
-use crate::init;
-
 use super::Uniform;
 
 pub type ShaderArea = <super::imp::ShaderArea as ObjectSubclass>::Instance;
@@ -38,7 +36,6 @@ pub type ShaderArea = <super::imp::ShaderArea as ObjectSubclass>::Instance;
 /// on first call.
 #[unsafe(no_mangle)]
 pub extern "C" fn gtk_gl_shaders_shader_area_get_type() -> GType {
-    init();
     <super::ShaderArea as StaticType>::static_type().into_glib()
 }
 

@@ -39,6 +39,8 @@ use std::{collections::HashMap, path::PathBuf};
 use glib::{Object, subclass::types::ObjectSubclassIsExt};
 use gtk::glib;
 
+use crate::init;
+
 mod ffi;
 mod imp;
 
@@ -98,6 +100,8 @@ impl ShaderArea {
     /// A new `ShaderArea` widget ready to be added to a GTK4 container.
     #[must_use]
     pub fn new(shader: String, textures: Vec<PathBuf>, uniforms: HashMap<String, Uniform>) -> Self {
+        init();
+
         let this: Self = Object::new();
         this.imp().initialize(shader, textures, uniforms);
         this

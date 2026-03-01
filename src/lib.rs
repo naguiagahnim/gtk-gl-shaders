@@ -41,9 +41,6 @@ static GLIB_LOGGER: GlibLogger =
 /// - The Rust `log` crate is configured to forward to GLib's logger
 fn init() {
     INIT.call_once(|| {
-        // Initialize GTK for widget operations
-        gtk::init().expect("GTK initialization failed");
-
         // Load libepoxy for OpenGL function resolution
         let library = unsafe { Library::new("libepoxy.so.0") }.expect("Can't find libepoxy.so.0");
         epoxy::load_with(|name| {
