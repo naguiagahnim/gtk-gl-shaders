@@ -79,8 +79,8 @@ top-right. Textures are accessible as `tex0`, `tex1`, etc.
   your shader
 - **Uniform Variables** — Pass and update uniform values from JavaScript at
   runtime
-- **GTK4 Integration** — Returns a `ShaderArea` widget (wrapping a `GLArea`)
-  that works anywhere in GTK4
+- **GTK4 GLArea Subclass** — `ShaderArea` is a direct subclass of `GtkGLArea`,
+  inheriting all its functionality
 - **Automatic Cleanup** — OpenGL resources are properly freed when widgets are
   destroyed
 - **Multiple Instances** — Create as many shader widgets as you need
@@ -260,8 +260,8 @@ effect.
 src/
   lib.rs                          # Library entry point, GTK/OpenGL initialization
   shader_area/
-    mod.rs                        # ShaderArea GObject wrapper, Uniform enum
-    imp.rs                        # OpenGL implementation (shader compilation, textures, uniforms)
+    mod.rs                        # ShaderArea GLArea subclass wrapper, Uniform enum
+    imp.rs                        # OpenGL implementation (GLAreaImpl, shader compilation, textures, uniforms)
     ffi.rs                        # C FFI bindings for GJS introspection
 include/
   shaderarea.h                    # C header for g-ir-scanner

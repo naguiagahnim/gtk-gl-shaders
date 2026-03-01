@@ -12,7 +12,7 @@ use std::{
 };
 
 use glib::Propagation;
-use gtk::{GLArea, glib, prelude::*, subclass::prelude::*};
+use gtk::{glib, prelude::*, subclass::prelude::*};
 use image::GenericImageView;
 use log::{error, warn};
 
@@ -34,48 +34,169 @@ struct GLState {
 /// Internal state for the `ShaderArea` widget.
 #[derive(Debug, Default)]
 pub struct ShaderArea {
-    /// The underlying `GLArea` widget
-    area: RefCell<Option<gtk::GLArea>>,
     /// OpenGL state (initialized on realize, cleaned up on unrealize)
     gl_state: RefCell<Option<GLState>>,
+    /// Shader source code (set before realize)
+    shader_source: RefCell<Option<String>>,
+    /// Texture paths (set before realize)
+    texture_paths: RefCell<Option<Vec<PathBuf>>>,
+    /// Initial uniforms (set before realize)
+    initial_uniforms: RefCell<Option<HashMap<String, Uniform>>>,
 }
 
 #[glib::object_subclass]
 impl ObjectSubclass for ShaderArea {
     const NAME: &'static str = "GtkGlShadersShaderArea";
     type Type = super::ShaderArea;
-    type ParentType = gtk::Widget;
-
-    fn class_init(klass: &mut Self::Class) {
-        klass.set_layout_manager_type::<gtk::BinLayout>();
-    }
+    type ParentType = gtk::GLArea;
 }
 
 impl ObjectImpl for ShaderArea {
     fn constructed(&self) {
         self.parent_constructed();
-        let obj = self.obj();
-
-        // Create and attach the GLArea child widget
-        let area = GLArea::new();
-        area.set_parent(&*obj);
-        *self.area.borrow_mut() = Some(area);
-    }
-
-    fn dispose(&self) {
-        if let Some(area) = self.area.borrow_mut().take() {
-            area.unparent();
-        }
     }
 }
 
-impl WidgetImpl for ShaderArea {}
+impl WidgetImpl for ShaderArea {
+    fn realize(&self) {
+        self.parent_realize();
+
+        self.obj().make_current();
+        if let Some(e) = self.obj().error() {
+            error!("Failed to switch OpenGL context: {e}");
+            return;
+        }
+
+        // Get initialization data
+        let Some(shader) = self.shader_source.borrow_mut().take() else {
+            error!("Shader source not set");
+            return;
+        };
+        let Some(textures) = self.texture_paths.borrow_mut().take() else {
+            error!("Texture paths not set");
+            return;
+        };
+        let Some(uniforms) = self.initial_uniforms.borrow_mut().take() else {
+            error!("Uniforms not set");
+            return;
+        };
+
+        // GTK can use either OpenGL or OpenGL ES depending on the platform.
+        // The GLSL version header differs between the two.
+        let glsl_version = if self.obj().uses_es() {
+            "#version 300 es\nprecision highp float;\n"
+        } else {
+            "#version 330 core\n"
+        };
+
+        let vertex_shader = Self::build_vertex_shader(glsl_version);
+        let fragment_shader = format!("{glsl_version}{shader}");
+
+        unsafe {
+            let program = Self::link_program(&vertex_shader, &fragment_shader);
+
+            // Core profile requires a VAO even when no vertex attributes are used
+            let mut vao = 0u32;
+            epoxy::GenVertexArrays(1, &raw mut vao);
+            epoxy::BindVertexArray(vao);
+
+            epoxy::UseProgram(program);
+
+            // Load textures and bind them to texture units
+            let mut texture_ids = Vec::with_capacity(textures.len());
+            for (i, tex) in textures.iter().enumerate() {
+                let Some(id) = Self::load_texture(i as u32, tex) else {
+                    continue;
+                };
+                texture_ids.push(id);
+
+                // Bind the texture to its sampler uniform (tex0, tex1, …)
+                let name = format!("tex{i}\0");
+                let loc = epoxy::GetUniformLocation(program, name.as_ptr().cast::<i8>());
+                if loc >= 0 {
+                    epoxy::Uniform1i(loc, i as i32);
+                } else {
+                    warn!("Texture not used in shader: {}", tex.display());
+                }
+            }
+
+            // Collect uniform locations
+            let mut uniform_map = HashMap::new();
+            for (name, value) in &uniforms {
+                let name_c = format!("{name}\0");
+                let loc = epoxy::GetUniformLocation(program, name_c.as_ptr().cast::<i8>());
+                if loc >= 0 {
+                    uniform_map.insert(name.clone(), (loc, value.clone()));
+                } else {
+                    warn!("Uniform not used in shader: {name}");
+                }
+            }
+
+            self.gl_state.borrow_mut().replace(GLState {
+                program,
+                vao,
+                textures: texture_ids,
+                uniforms: uniform_map,
+            });
+        }
+    }
+
+    fn unrealize(&self) {
+        self.obj().make_current();
+        if let Some(e) = self.obj().error() {
+            error!("Failed to switch OpenGL context: {e}");
+            return;
+        }
+
+        if let Some(state) = self.gl_state.borrow_mut().take() {
+            unsafe {
+                epoxy::DeleteProgram(state.program);
+                epoxy::DeleteVertexArrays(1, &raw const state.vao);
+                if !state.textures.is_empty() {
+                    epoxy::DeleteTextures(state.textures.len() as i32, state.textures.as_ptr());
+                }
+            }
+        }
+
+        self.parent_unrealize();
+    }
+}
+
+impl GLAreaImpl for ShaderArea {
+    fn render(&self, _ctx: &gtk::gdk::GLContext) -> Propagation {
+        if let Some(e) = self.obj().error() {
+            error!("Failed to switch OpenGL context: {e}");
+            return Propagation::Stop;
+        }
+
+        if let Some(state) = self.gl_state.borrow().as_ref() {
+            unsafe {
+                epoxy::ClearColor(0.0, 0.0, 0.0, 0.0);
+                epoxy::Clear(epoxy::COLOR_BUFFER_BIT);
+
+                Self::apply_uniforms(state);
+                epoxy::BindVertexArray(state.vao);
+
+                // Bind textures to their respective texture units
+                for (i, &id) in state.textures.iter().enumerate() {
+                    epoxy::ActiveTexture(epoxy::TEXTURE0 + i as u32);
+                    epoxy::BindTexture(epoxy::TEXTURE_2D, id);
+                }
+
+                // Draw a fullscreen quad using TRIANGLE_STRIP
+                // 4 vertices: (0,0), (1,0), (0,1), (1,1)
+                epoxy::DrawArrays(epoxy::TRIANGLE_STRIP, 0, 4);
+
+                epoxy::Flush();
+            }
+        }
+
+        Propagation::Stop
+    }
+}
 
 impl ShaderArea {
-    /// Initializes the OpenGL context and sets up rendering callbacks.
-    ///
-    /// This method connects to the GLArea's `realize`, `unrealize`, and
-    /// `render` signals to manage the OpenGL lifecycle.
+    /// Stores initialization data for later use when the widget is realized.
     ///
     /// # Arguments
     ///
@@ -88,136 +209,9 @@ impl ShaderArea {
         textures: Vec<PathBuf>,
         uniforms: HashMap<String, Uniform>,
     ) {
-        let area = self.area.borrow();
-        let area = area
-            .as_ref()
-            .expect("Missing GLArea, was this object properly initialized?");
-
-        // Using weak refs to prevent reference cycles
-        let this = self.downgrade();
-        area.connect_realize(move |area| {
-            area.make_current();
-            if let Some(e) = area.error() {
-                error!("Failed to switch OpenGL context: {e}");
-                return;
-            }
-
-            // GTK can use either OpenGL or OpenGL ES depending on the platform.
-            // The GLSL version header differs between the two.
-            let glsl_version = if area.uses_es() {
-                "#version 300 es\nprecision highp float;\n"
-            } else {
-                "#version 330 core\n"
-            };
-
-            let vertex_shader = Self::build_vertex_shader(glsl_version);
-            let fragment_shader = format!("{glsl_version}{shader}");
-
-            unsafe {
-                let program = Self::link_program(&vertex_shader, &fragment_shader);
-
-                // Core profile requires a VAO even when no vertex attributes are used
-                let mut vao = 0u32;
-                epoxy::GenVertexArrays(1, &raw mut vao);
-                epoxy::BindVertexArray(vao);
-
-                epoxy::UseProgram(program);
-
-                // Load textures and bind them to texture units
-                let mut texture_ids = Vec::with_capacity(textures.len());
-                for (i, tex) in textures.iter().enumerate() {
-                    let Some(id) = Self::load_texture(i as u32, tex) else {
-                        continue;
-                    };
-                    texture_ids.push(id);
-
-                    // Bind the texture to its sampler uniform (tex0, tex1, …)
-                    let name = format!("tex{i}\0");
-                    let loc = epoxy::GetUniformLocation(program, name.as_ptr().cast::<i8>());
-                    if loc >= 0 {
-                        epoxy::Uniform1i(loc, i as i32);
-                    } else {
-                        warn!("Texture not used in shader: {}", tex.display());
-                    }
-                }
-
-                // Collect uniform locations
-                let mut uniform_map = HashMap::new();
-                for (name, value) in &uniforms {
-                    let name_c = format!("{name}\0");
-                    let loc = epoxy::GetUniformLocation(program, name_c.as_ptr().cast::<i8>());
-                    if loc >= 0 {
-                        uniform_map.insert(name.clone(), (loc, value.clone()));
-                    } else {
-                        warn!("Uniform not used in shader: {name}");
-                    }
-                }
-
-                if let Some(this) = this.upgrade() {
-                    this.gl_state.borrow_mut().replace(GLState {
-                        program,
-                        vao,
-                        textures: texture_ids,
-                        uniforms: uniform_map,
-                    });
-                }
-            }
-        });
-
-        // Clean up OpenGL resources when the widget is unrealized
-        let this = self.downgrade();
-        area.connect_unrealize(move |area| {
-            area.make_current();
-            if let Some(e) = area.error() {
-                error!("Failed to switch OpenGL context: {e}");
-                return;
-            }
-
-            if let Some(state) = this.upgrade().and_then(|x| x.gl_state.borrow_mut().take()) {
-                unsafe {
-                    epoxy::DeleteProgram(state.program);
-                    epoxy::DeleteVertexArrays(1, &raw const state.vao);
-                    if !state.textures.is_empty() {
-                        epoxy::DeleteTextures(state.textures.len() as i32, state.textures.as_ptr());
-                    }
-                }
-            }
-        });
-
-        // Render callback - draws the fullscreen quad with the shader
-        let this = self.downgrade();
-        area.connect_render(move |area, _ctx| {
-            if let Some(e) = area.error() {
-                error!("Failed to switch OpenGL context: {e}");
-                return Propagation::Stop;
-            }
-
-            if let Some(this) = this.upgrade()
-                && let Some(state) = this.gl_state.borrow().as_ref()
-            {
-                unsafe {
-                    epoxy::ClearColor(0.0, 0.0, 0.0, 0.0);
-                    epoxy::Clear(epoxy::COLOR_BUFFER_BIT);
-
-                    Self::apply_uniforms(state);
-                    epoxy::BindVertexArray(state.vao);
-
-                    // Bind textures to their respective texture units
-                    for (i, &id) in state.textures.iter().enumerate() {
-                        epoxy::ActiveTexture(epoxy::TEXTURE0 + i as u32);
-                        epoxy::BindTexture(epoxy::TEXTURE_2D, id);
-                    }
-
-                    // Draw a fullscreen quad using TRIANGLE_STRIP
-                    // 4 vertices: (0,0), (1,0), (0,1), (1,1)
-                    epoxy::DrawArrays(epoxy::TRIANGLE_STRIP, 0, 4);
-
-                    epoxy::Flush();
-                }
-            }
-
-            Propagation::Stop
-        });
+        *self.shader_source.borrow_mut() = Some(shader);
+        *self.texture_paths.borrow_mut() = Some(textures);
+        *self.initial_uniforms.borrow_mut() = Some(uniforms);
     }
 
     /// Sets a uniform value on the shader program.
@@ -227,15 +221,14 @@ impl ShaderArea {
     /// * `name` - The name of the uniform variable
     /// * `value` - The new value to set
     pub fn set_uniform(&self, name: String, value: Uniform) {
-        let area = self.area.borrow();
         let mut state = self.gl_state.borrow_mut();
-        let (Some(area), Some(state)) = (area.as_ref(), state.as_mut()) else {
+        let Some(state) = state.as_mut() else {
             warn!("Couldn't set uniform because the widget isn't being rendered");
             return;
         };
 
-        area.make_current();
-        if let Some(e) = area.error() {
+        self.obj().make_current();
+        if let Some(e) = self.obj().error() {
             error!("Failed to switch OpenGL context: {e}");
             return;
         }
@@ -257,7 +250,7 @@ impl ShaderArea {
         state.uniforms.insert(name, (location, value));
 
         // Queue a redraw to apply the new uniform
-        area.queue_render();
+        self.obj().queue_render();
     }
 
     /// Builds the vertex shader for a fullscreen quad.

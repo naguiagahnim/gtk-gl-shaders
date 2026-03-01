@@ -67,17 +67,20 @@ pub enum Uniform {
 }
 
 glib::wrapper! {
-    /// A GTK4 widget that renders custom GLSL fragment shaders.
+    /// A GTK4 GLArea widget that renders custom GLSL fragment shaders.
     ///
-    /// `ShaderArea` is a GTK4 widget that embeds a `GLArea` and renders a fullscreen
+    /// `ShaderArea` is a subclass of `gtk::GLArea` that renders a fullscreen
     /// quad with a custom fragment shader. It supports loading textures and setting
     /// uniform values.
+    ///
+    /// As a GLArea subclass, it inherits all GLArea functionality and can be
+    /// used anywhere a GTK4 widget is expected.
     ///
     /// # Example
     ///
     /// See the module-level documentation for usage examples.
     pub struct ShaderArea(ObjectSubclass<imp::ShaderArea>)
-        @extends gtk::Widget,
+        @extends gtk::GLArea, gtk::Widget,
         @implements gtk::Buildable, gtk::ConstraintTarget;
 }
 

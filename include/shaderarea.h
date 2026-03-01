@@ -10,9 +10,12 @@ G_BEGIN_DECLS
  *
  * A widget that renders custom GLSL fragment shaders.
  *
- * `GtkGlShadersShaderArea` is a GTK4 widget that embeds an OpenGL rendering area
- * and executes a user-provided fragment shader on a fullscreen quad. It supports
- * loading textures and setting uniform values.
+ * `GtkGlShadersShaderArea` is a subclass of `GtkGLArea` that executes a
+ * user-provided fragment shader on a fullscreen quad. It supports loading
+ * textures and setting uniform values.
+ *
+ * As a `GtkGLArea` subclass, it inherits all GLArea functionality including
+ * OpenGL context management and can be used anywhere a GTK4 widget is expected.
  *
  * # Shader inputs
  *
@@ -21,7 +24,7 @@ G_BEGIN_DECLS
  * - Custom uniforms - Set via the `gtk_gl_shaders_shader_area_set_uniform_*` functions
  */
 G_DECLARE_FINAL_TYPE(GtkGlShadersShaderArea, gtk_gl_shaders_shader_area,
-                     GTK_GL_SHADERS, SHADER_AREA, GtkWidget)
+                     GTK_GL_SHADERS, SHADER_AREA, GtkGLArea)
 
 /**
  * gtk_gl_shaders_shader_area_new:
