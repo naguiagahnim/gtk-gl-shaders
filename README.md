@@ -1,20 +1,20 @@
 # glarea-gjs
 
-A library made in Rust that exposes GTK4 `GLArea` widgets with custom GLSL shaders to
-GJS/JavaScript via GObject Introspection. Built for use with
+A library made in Rust that exposes GTK4 `GLArea` widgets with custom GLSL
+shaders to GJS/JavaScript via GObject Introspection. Built for use with
 [AGS](https://github.com/Aylur/ags) / [Astal](https://github.com/Aylur/astal).
 
 <div align="center">
-  <img src="https://github.com/naguiagahnim/glarea-gjs/blob/657815bf231001892dd2b8cbd4aa7f75db676e9b/assets/demo.png" alt="demo" width="600">
+  <img src="https://github.com/naguiagahnim/glarea-gjs/blob/657815bf231001892dd2b8cbd4aa7f75db676e9b/assets/rainbow-demo.gif" alt="demo" width="600">
   <p><i>A truly wondrous feat of technology</i></p>
 </div>
 
 ## What it does
 
-You write a GLSL fragment shader, pass it from JavaScript along with textures and uniform values,
-and get back a `ShaderArea` widget you can drop anywhere in your GTK4 app. The library handles the
-OpenGL boilerplate — fullscreen quad, shader compilation, texture uploads, uniform management,
-and cleanup.
+You write a GLSL fragment shader, pass it from JavaScript along with textures
+and uniform values, and get back a `ShaderArea` widget you can drop anywhere in
+your GTK4 app. The library handles the OpenGL boilerplate — fullscreen quad,
+shader compilation, texture uploads, uniform management, and cleanup.
 
 ```js
 import GLib from "gi://GLib";
@@ -27,14 +27,15 @@ Gtk.init();
 function makeUniforms(obj) {
   const entries = {};
   for (const [k, v] of Object.entries(obj)) {
-    if (Array.isArray(v))
-      entries[k] = new GLib.Variant('ad', v);
-    else if (typeof v === "number")
+    if (Array.isArray(v)) {
+      entries[k] = new GLib.Variant("ad", v);
+    } else if (typeof v === "number") {
       entries[k] = GLib.Variant.new_double(v);
-    else if (v instanceof GLib.Variant)
+    } else if (v instanceof GLib.Variant) {
       entries[k] = v;
+    }
   }
-  return new GLib.Variant('a{sv}', entries);
+  return new GLib.Variant("a{sv}", entries);
 }
 
 const area = GtkGlShaders.ShaderArea.new(
@@ -71,39 +72,50 @@ top-right. Textures are accessible as `tex0`, `tex1`, etc.
 ## Features
 
 ### Core Features
-- **GLSL Fragment Shaders** — Write custom fragment shaders in GLSL (GLSL 330 Core or 300 ES)
-- **Texture Loading** — Pass image paths, get them as `tex0`, `tex1`, etc. in your shader
-- **Uniform Variables** — Pass and update uniform values from JavaScript at runtime
-- **GTK4 Integration** — Returns a `ShaderArea` widget (wrapping a `GLArea`) that works anywhere in GTK4
-- **Automatic Cleanup** — OpenGL resources are properly freed when widgets are destroyed
+
+- **GLSL Fragment Shaders** — Write custom fragment shaders in GLSL (GLSL 330
+  Core or 300 ES)
+- **Texture Loading** — Pass image paths, get them as `tex0`, `tex1`, etc. in
+  your shader
+- **Uniform Variables** — Pass and update uniform values from JavaScript at
+  runtime
+- **GTK4 Integration** — Returns a `ShaderArea` widget (wrapping a `GLArea`)
+  that works anywhere in GTK4
+- **Automatic Cleanup** — OpenGL resources are properly freed when widgets are
+  destroyed
 - **Multiple Instances** — Create as many shader widgets as you need
 
 ### Uniform Types
 
-The library supports the following uniform types that can be passed from JavaScript:
+The library supports the following uniform types that can be passed from
+JavaScript:
 
-| Type | GLSL Type | JavaScript | C Function |
-|------|-----------|------------|------------|
-| Float | `float` | `GLib.Variant.new_double(value)` | `set_uniform_float(name, value)` |
-| Vec2 | `vec2` | `new GLib.Variant('ad', [x, y])` | `set_uniform_vec2(name, x, y)` |
-| Vec3 | `vec3` | `new GLib.Variant('ad', [x, y, z])` | `set_uniform_vec3(name, x, y, z)` |
-| Vec4 | `vec4` | `new GLib.Variant('ad', [x, y, z, w])` | `set_uniform_vec4(name, x, y, z, w)` |
-| Int | `int` | `GLib.Variant.new_int32(value)` | `set_uniform_int(name, value)` |
-| IVec2 | `ivec2` | `new GLib.Variant('ai', [x, y])` | `set_uniform_ivec2(name, x, y)` |
-| IVec3 | `ivec3` | `new GLib.Variant('ai', [x, y, z])` | `set_uniform_ivec3(name, x, y, z)` |
-| IVec4 | `ivec4` | `new GLib.Variant('ai', [x, y, z, w])` | `set_uniform_ivec4(name, x, y, z, w)` |
+| Type  | GLSL Type | JavaScript                             | C Function                            |
+| ----- | --------- | -------------------------------------- | ------------------------------------- |
+| Float | `float`   | `GLib.Variant.new_double(value)`       | `set_uniform_float(name, value)`      |
+| Vec2  | `vec2`    | `new GLib.Variant('ad', [x, y])`       | `set_uniform_vec2(name, x, y)`        |
+| Vec3  | `vec3`    | `new GLib.Variant('ad', [x, y, z])`    | `set_uniform_vec3(name, x, y, z)`     |
+| Vec4  | `vec4`    | `new GLib.Variant('ad', [x, y, z, w])` | `set_uniform_vec4(name, x, y, z, w)`  |
+| Int   | `int`     | `GLib.Variant.new_int32(value)`        | `set_uniform_int(name, value)`        |
+| IVec2 | `ivec2`   | `new GLib.Variant('ai', [x, y])`       | `set_uniform_ivec2(name, x, y)`       |
+| IVec3 | `ivec3`   | `new GLib.Variant('ai', [x, y, z])`    | `set_uniform_ivec3(name, x, y, z)`    |
+| IVec4 | `ivec4`   | `new GLib.Variant('ai', [x, y, z, w])` | `set_uniform_ivec4(name, x, y, z, w)` |
 
 #### Passing Uniforms at Creation
 
 When creating a `ShaderArea`, pass uniforms as a `GVariant` dictionary:
 
 ```js
-const area = GtkGlShaders.ShaderArea.new(shader, textures, makeUniforms({
-  time: 0.0,           // float
-  resolution: [1920, 1080],  // vec2
-  color: [1.0, 0.5, 0.0, 1.0], // vec4
-  seed: 42,            // int
-}));
+const area = GtkGlShaders.ShaderArea.new(
+  shader,
+  textures,
+  makeUniforms({
+    time: 0.0, // float
+    resolution: [1920, 1080], // vec2
+    color: [1.0, 0.5, 0.0, 1.0], // vec4
+    seed: 42, // int
+  }),
+);
 ```
 
 #### Updating Uniforms at Runtime
@@ -136,12 +148,13 @@ win.set_default_size(400, 400);
 function makeUniforms(obj) {
   const entries = {};
   for (const [k, v] of Object.entries(obj)) {
-    if (Array.isArray(v))
-      entries[k] = new GLib.Variant('ad', v);
-    else if (typeof v === "number")
+    if (Array.isArray(v)) {
+      entries[k] = new GLib.Variant("ad", v);
+    } else if (typeof v === "number") {
       entries[k] = GLib.Variant.new_double(v);
+    }
   }
-  return new GLib.Variant('a{sv}', entries);
+  return new GLib.Variant("a{sv}", entries);
 }
 
 const shader = `
@@ -155,7 +168,11 @@ const shader = `
   }
 `;
 
-const area = GtkGlShaders.ShaderArea.new(shader, [], makeUniforms({ time: 0.0 }));
+const area = GtkGlShaders.ShaderArea.new(
+  shader,
+  [],
+  makeUniforms({ time: 0.0 }),
+);
 win.set_child(area);
 win.show();
 
@@ -173,34 +190,43 @@ Gtk.main();
 ## Limitations
 
 ### Not Implemented
-- **Vertex Shaders** — Only fragment shaders are supported (fullscreen quad is hardcoded)
-- **Dynamic Texture Updates** — Textures are set at creation time and cannot be changed
+
+- **Vertex Shaders** — Only fragment shaders are supported (fullscreen quad is
+  hardcoded)
+- **Dynamic Texture Updates** — Textures are set at creation time and cannot be
+  changed
 - **3D/Geometry** — This is strictly 2D fragment shader rendering
 
 ## Dependencies
 
 ### Runtime
+
 - GTK4 with OpenGL support
 - GJS (GNOME JavaScript)
 - libepoxy
 
 ### Build-time
+
 - Rust (stable toolchain)
 - Meson + Ninja
 - pkg-config
 - GObject Introspection
 
 ### NixOS / Nix
+
 A complete development environment is provided via `flake.nix`:
+
 ```bash
 nix develop
 ```
 
-This includes all necessary dependencies and drops you into a shell ready to build.
+This includes all necessary dependencies and drops you into a shell ready to
+build.
 
 ## Building
 
 ### With Nix (Recommended)
+
 ```bash
 nix develop          # Enter dev shell
 meson setup build    # Configure build
@@ -208,7 +234,9 @@ meson compile -C build
 ```
 
 ### Without Nix
+
 Ensure you have the dependencies installed via your package manager, then:
+
 ```bash
 meson setup build
 meson compile -C build
@@ -217,14 +245,17 @@ meson compile -C build
 ## Testing
 
 A test script is provided to verify the library works:
+
 ```bash
 ./test.sh
 ```
 
-This will compile the library and run a simple demo with a test shader through the `test.js` file,
-showcasing uniform animation with a time-based color cycle effect.
+This will compile the library and run a simple demo with a test shader through
+the `test.js` file, showcasing uniform animation with a time-based color cycle
+effect.
 
 ## Project Structure
+
 ```
 src/
   lib.rs                          # Library entry point, GTK/OpenGL initialization
@@ -241,11 +272,15 @@ flake.nix                         # Nix development environment
 
 This project benefited from studying the following resources:
 
-- [GTK demo (glarea.c)](https://github.com/GNOME/gtk/blob/main/demos/gtk-demo/glarea.c) — full OpenGL rendering example
-- [gtk4-rs custom widget examples](https://github.com/gtk-rs/gtk4-rs/tree/main/examples/custom_widget) — custom widget patterns
-- [gobject-example-rs](https://github.com/sdroege/gobject-example-rs) — GObject library structure reference
+- [GTK demo (glarea.c)](https://github.com/GNOME/gtk/blob/main/demos/gtk-demo/glarea.c)
+  — full OpenGL rendering example
+- [gtk4-rs custom widget examples](https://github.com/gtk-rs/gtk4-rs/tree/main/examples/custom_widget)
+  — custom widget patterns
+- [gobject-example-rs](https://github.com/sdroege/gobject-example-rs) — GObject
+  library structure reference
 
 ## Acknowledgements
 
-This project would not be what it is without [@Rayzeq](https://github.com/Rayzeq), who contributed major features, implementation work, and core ideas.
-Effectively a co-creator of this project.
+This project would not be what it is without
+[@Rayzeq](https://github.com/Rayzeq), who contributed major features,
+implementation work, and core ideas. Effectively a co-creator of this project.
