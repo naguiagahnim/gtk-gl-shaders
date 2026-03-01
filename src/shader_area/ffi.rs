@@ -1,3 +1,16 @@
+//! C FFI bindings for `ShaderArea`.
+//!
+//! This module exposes C-compatible functions that are called through
+//! GObject Introspection from GJS/JavaScript. These functions wrap the
+//! safe Rust implementation and handle FFI boundary concerns like
+//! pointer validation and string conversion.
+//!
+//! # Safety
+//!
+//! All functions in this module are `extern "C"` and must uphold FFI safety
+//! guarantees. Callers must ensure pointers are valid and strings are
+//! null-terminated.
+
 use std::{collections::HashMap, ffi::c_char, path::PathBuf};
 
 use glib::{
@@ -15,14 +28,27 @@ use super::Uniform;
 
 pub type ShaderArea = <super::imp::ShaderArea as ObjectSubclass>::Instance;
 
-// this functions is called by g-ir-scanner
+/// Returns the `GType` for `ShaderArea`.
+///
+/// This function is called by g-ir-scanner during introspection generation.
+///
+/// # Safety
+///
+/// This function is safe to call from C and will initialize the library
+/// on first call.
 #[unsafe(no_mangle)]
 pub extern "C" fn gtk_gl_shaders_shader_area_get_type() -> GType {
     init();
-
     <super::ShaderArea as StaticType>::static_type().into_glib()
 }
 
+/// Creates a new `ShaderArea` widget.
+///
+/// # Safety
+///
+/// - `shader` must be a valid null-terminated C string
+/// - `textures` must be a valid array of `textures_count` null-terminated C strings (or null)
+/// - `uniforms` must be a valid `GVariant` of type `a{sv}` (or null)
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn gtk_gl_shaders_shader_area_new(
     shader: *const c_char,
@@ -50,60 +76,90 @@ pub unsafe extern "C" fn gtk_gl_shaders_shader_area_new(
     let uniforms = if uniforms.is_null() {
         HashMap::new()
     } else {
-        let uniforms = unsafe { Variant::from_glib_none(uniforms) };
-        let mut result = HashMap::new();
-
-        if let Some(uniforms) = uniforms.get::<HashMap<String, Variant>>() {
-            for (name, value) in uniforms {
-                #[expect(
-                    clippy::cast_possible_truncation,
-                    reason = "Variant can't contain f32, so we have to pass through a f64"
-                )]
-                let value = if let Some(value) = value.get::<f64>() {
-                    Uniform::Float(value as f32)
-                } else if let Some(value) = value.get::<Vec<f64>>() {
-                    match value.len() {
-                        2 => Uniform::Vec2([value[0] as f32, value[1] as f32]),
-                        3 => Uniform::Vec3([value[0] as f32, value[1] as f32, value[2] as f32]),
-                        4 => Uniform::Vec4([
-                            value[0] as f32,
-                            value[1] as f32,
-                            value[2] as f32,
-                            value[3] as f32,
-                        ]),
-                        n => {
-                            error!("Uniform '{name}' has an invalid number of elements: {n}");
-                            continue;
-                        }
-                    }
-                } else if let Some(value) = value.get::<i32>() {
-                    Uniform::Int(value)
-                } else if let Some(value) = value.get::<Vec<i32>>() {
-                    match value.len() {
-                        2 => Uniform::IVec2([value[0], value[1]]),
-                        3 => Uniform::IVec3([value[0], value[1], value[2]]),
-                        4 => Uniform::IVec4([value[0], value[1], value[2], value[3]]),
-                        n => {
-                            error!("Uniform '{name}' has an invalid number of elements: {n}");
-                            continue;
-                        }
-                    }
-                } else {
-                    error!("Uniform '{name}' has unknown type");
-                    continue;
-                };
-                result.insert(name, value);
-            }
-        } else {
-            error!("Invalid value passed to `uniforms`");
-        }
-
-        result
+        parse_uniforms(unsafe { Variant::from_glib_none(uniforms) })
     };
 
     super::ShaderArea::new(shader, textures, uniforms).to_glib_full()
 }
 
+/// Parses a `GVariant` dictionary into a `HashMap` of uniforms.
+fn parse_uniforms(variant: Variant) -> HashMap<String, Uniform> {
+    let mut result = HashMap::new();
+
+    let Some(uniforms) = variant.get::<HashMap<String, Variant>>() else {
+        error!("Invalid value passed to `uniforms` - expected a{{sv}} dictionary");
+        return result;
+    };
+
+    for (name, value) in uniforms {
+        let uniform = if let Some(v) = value.get::<f64>() {
+            // Variant can't contain f32, so we cast from f64
+            Uniform::Float(v as f32)
+        } else if let Some(v) = value.get::<Vec<f64>>() {
+            match v.len() {
+                2 => Uniform::Vec2([v[0] as f32, v[1] as f32]),
+                3 => Uniform::Vec3([v[0] as f32, v[1] as f32, v[2] as f32]),
+                4 => Uniform::Vec4([v[0] as f32, v[1] as f32, v[2] as f32, v[3] as f32]),
+                n => {
+                    error!(
+                        "Uniform '{name}' has invalid number of elements: {n} (expected 2, 3, or 4)"
+                    );
+                    continue;
+                }
+            }
+        } else if let Some(v) = value.get::<i32>() {
+            Uniform::Int(v)
+        } else if let Some(v) = value.get::<Vec<i32>>() {
+            match v.len() {
+                2 => Uniform::IVec2([v[0], v[1]]),
+                3 => Uniform::IVec3([v[0], v[1], v[2]]),
+                4 => Uniform::IVec4([v[0], v[1], v[2], v[3]]),
+                n => {
+                    error!(
+                        "Uniform '{name}' has invalid number of elements: {n} (expected 2, 3, or 4)"
+                    );
+                    continue;
+                }
+            }
+        } else {
+            error!("Uniform '{name}' has unsupported type");
+            continue;
+        };
+        result.insert(name, uniform);
+    }
+
+    result
+}
+
+/// Macro to generate uniform setter FFI functions.
+macro_rules! generate_uniform_setter {
+    ($name:ident, $variant:ident, $($param:ident: $ty:ty),+) => {
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn $name(
+            this: *mut ShaderArea,
+            name: *const c_char,
+            $($param: $ty),+
+        ) {
+            let this = unsafe { super::ShaderArea::from_glib_none(this) };
+            let name = unsafe { GString::from_glib_none(name) }.as_str().to_owned();
+            this.set_uniform(name, Uniform::$variant([$($param),+]));
+        }
+    };
+    ($name:ident, $variant:ident, $param:ident: $ty:ty) => {
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn $name(
+            this: *mut ShaderArea,
+            name: *const c_char,
+            $param: $ty
+        ) {
+            let this = unsafe { super::ShaderArea::from_glib_none(this) };
+            let name = unsafe { GString::from_glib_none(name) }.as_str().to_owned();
+            this.set_uniform(name, Uniform::$variant($param));
+        }
+    };
+}
+
+// Float setter (single value, not a vector)
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn gtk_gl_shaders_shader_area_set_uniform_float(
     this: *mut ShaderArea,
@@ -112,52 +168,15 @@ pub unsafe extern "C" fn gtk_gl_shaders_shader_area_set_uniform_float(
 ) {
     let this = unsafe { super::ShaderArea::from_glib_none(this) };
     let name = unsafe { GString::from_glib_none(name) }.as_str().to_owned();
-
     this.set_uniform(name, Uniform::Float(value));
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn gtk_gl_shaders_shader_area_set_uniform_vec2(
-    this: *mut ShaderArea,
-    name: *const c_char,
-    a: f32,
-    b: f32,
-) {
-    let this = unsafe { super::ShaderArea::from_glib_none(this) };
-    let name = unsafe { GString::from_glib_none(name) }.as_str().to_owned();
+// Vector setters
+generate_uniform_setter!(gtk_gl_shaders_shader_area_set_uniform_vec2, Vec2, a: f32, b: f32);
+generate_uniform_setter!(gtk_gl_shaders_shader_area_set_uniform_vec3, Vec3, a: f32, b: f32, c: f32);
+generate_uniform_setter!(gtk_gl_shaders_shader_area_set_uniform_vec4, Vec4, a: f32, b: f32, c: f32, d: f32);
 
-    this.set_uniform(name, Uniform::Vec2([a, b]));
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn gtk_gl_shaders_shader_area_set_uniform_vec3(
-    this: *mut ShaderArea,
-    name: *const c_char,
-    a: f32,
-    b: f32,
-    c: f32,
-) {
-    let this = unsafe { super::ShaderArea::from_glib_none(this) };
-    let name = unsafe { GString::from_glib_none(name) }.as_str().to_owned();
-
-    this.set_uniform(name, Uniform::Vec3([a, b, c]));
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn gtk_gl_shaders_shader_area_set_uniform_vec4(
-    this: *mut ShaderArea,
-    name: *const c_char,
-    a: f32,
-    b: f32,
-    c: f32,
-    d: f32,
-) {
-    let this = unsafe { super::ShaderArea::from_glib_none(this) };
-    let name = unsafe { GString::from_glib_none(name) }.as_str().to_owned();
-
-    this.set_uniform(name, Uniform::Vec4([a, b, c, d]));
-}
-
+// Int setter (single value)
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn gtk_gl_shaders_shader_area_set_uniform_int(
     this: *mut ShaderArea,
@@ -166,48 +185,10 @@ pub unsafe extern "C" fn gtk_gl_shaders_shader_area_set_uniform_int(
 ) {
     let this = unsafe { super::ShaderArea::from_glib_none(this) };
     let name = unsafe { GString::from_glib_none(name) }.as_str().to_owned();
-
     this.set_uniform(name, Uniform::Int(value));
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn gtk_gl_shaders_shader_area_set_uniform_ivec2(
-    this: *mut ShaderArea,
-    name: *const c_char,
-    a: i32,
-    b: i32,
-) {
-    let this = unsafe { super::ShaderArea::from_glib_none(this) };
-    let name = unsafe { GString::from_glib_none(name) }.as_str().to_owned();
-
-    this.set_uniform(name, Uniform::IVec2([a, b]));
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn gtk_gl_shaders_shader_area_set_uniform_ivec3(
-    this: *mut ShaderArea,
-    name: *const c_char,
-    a: i32,
-    b: i32,
-    c: i32,
-) {
-    let this = unsafe { super::ShaderArea::from_glib_none(this) };
-    let name = unsafe { GString::from_glib_none(name) }.as_str().to_owned();
-
-    this.set_uniform(name, Uniform::IVec3([a, b, c]));
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn gtk_gl_shaders_shader_area_set_uniform_ivec4(
-    this: *mut ShaderArea,
-    name: *const c_char,
-    a: i32,
-    b: i32,
-    c: i32,
-    d: i32,
-) {
-    let this = unsafe { super::ShaderArea::from_glib_none(this) };
-    let name = unsafe { GString::from_glib_none(name) }.as_str().to_owned();
-
-    this.set_uniform(name, Uniform::IVec4([a, b, c, d]));
-}
+// Integer vector setters
+generate_uniform_setter!(gtk_gl_shaders_shader_area_set_uniform_ivec2, IVec2, a: i32, b: i32);
+generate_uniform_setter!(gtk_gl_shaders_shader_area_set_uniform_ivec3, IVec3, a: i32, b: i32, c: i32);
+generate_uniform_setter!(gtk_gl_shaders_shader_area_set_uniform_ivec4, IVec4, a: i32, b: i32, c: i32, d: i32);
