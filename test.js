@@ -75,17 +75,14 @@ const updateUniform = () => {
   const currentTime = GLib.get_monotonic_time() / 1000000.0;
   const elapsedTime = currentTime - startTime;
 
-  // Update time uniform using the convenience function
+  // Update time uniform
   area.set_uniform_float("time", elapsedTime);
-
-  // Queue a redraw
-  // area.queue_render();
 
   // Continue animation
   return GLib.SOURCE_CONTINUE;
 };
 
-// Start animation loop (60 FPS)
+// Run animation loop every 10ms
 timeoutSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, updateUniform);
 
 win.show();
