@@ -114,8 +114,16 @@ include/
 flake.nix       # Nix development environment
 ```
 
+## References
+
+This project benefited from studying the following resources:
+
+- [GTK demo (glarea.c)](https://github.com/GNOME/gtk/blob/main/demos/gtk-demo/glarea.c) — full OpenGL rendering example  
+- [gtk4-rs custom widget examples](https://github.com/gtk-rs/gtk4-rs/tree/main/examples/custom_widget) — custom widget patterns  
+- [gobject-example-rs](https://github.com/sdroege/gobject-example-rs) — GObject library structure reference
 
 ## Acknowledgements
 
-Special thanks to [@Rayzeq](https://github.com/Rayzeq) for figuring out the
-epoxy initialization issue, for implementing uniforms and for all the help along the way.
+This project would not be what it is without [@Rayzeq](https://github.com/Rayzeq), who contributed major features, implementation work, and core ideas.  
+Effectively a co-creator of this project.
+
